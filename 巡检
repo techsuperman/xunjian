@@ -1,0 +1,49 @@
+import datetime
+
+import pandas as pd
+from netmiko import ConnectHandler
+
+# 从Excel文件中读取设备信息
+data = pd.read_excel('d:\\device_info.xlsx', sheet_name='Sheet1')
+devices = data.to_dict('records')
+
+# 获取当天日期
+date = datetime.date.today()
+date = date.strftime('%Y-%m-%d')
+
+
+# 巡检开始
+index = ''
+filename = 'D:\\巡检数据\\' + date + '.txt'
+file = open(filename, 'w')
+
+# 循环遍历设备列表，执行ping操作
+for device in devices:
+    try:
+        name = device['name']
+        command = device['ping_command']
+        index = name + '巡检开始' + '\r\n' + command
+        # 连接设备
+        net_connect = ConnectHandler(device_type=device['device_type'], ip=device['ip'], username=device['username'],
+                                     password=device['password'])
+        print(f"Connected to {device['ip']}")
+        # 执行ping操作
+        output = net_connect.send_command_timing(device['ping_command'])
+        index += output
+        index += '\r\n--------------------------------------------------------------------------------------\r\n'
+        # 解析ping结果
+        if "Sequence" in output and "Reply" in output:
+            result = name + "下一跳接口地址...OK"
+        elif "Success" in output and "5/5" in output:
+            result = name + "下一跳接口地址...OK"
+        else:
+            result = name + "下一跳接口...Fail"
+        print(result)
+
+    except Exception as e:
+        print(f"Error connecting to {device['ip']}:{str(e)}")
+
+# 输出结果
+    file = open(filename, 'a')
+    file.write(index)
+    file.close()
